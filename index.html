@@ -1,80 +1,167 @@
-// Game Config
+<!DOCTYPE html>
+<html lang="my">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ဆင်မလေးကို ကြံကျွေးမယ်</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #fdf2f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+    #game-container {
+      border: 4px solid #f472b6;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(244, 114, 182, 0.3);
+    }
+    .controls {
+      margin-top: 15px;
+    }
+    .feed-btn {
+      background: #ec4899;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(236, 72, 153, 0.4);
+      transition: transform 0.1s, background 0.2s;
+    }
+    .feed-btn:active {
+      transform: scale(0.95);
+      background: #db2777;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container"></div>
+<div class="controls">
+  <button id="feed-btn" class="feed-btn">ကြံကျွေးမယ် 🎋</button>
+</div>
+
+<script>
 const config = {
-    type: Phaser.AUTO,
-    width: 360,
-    height: 740,
-    backgroundColor: '#ffffff',
-    scene: { preload: preload, create: create, update: update }
+  type: Phaser.AUTO,
+  width: 400,
+  height: 400,
+  parent: 'game-container',
+  backgroundColor: '#ffe4e6',
+  scene: {
+    preload: preload,
+    create: create
+  }
 };
 
-let elephant, streakText, expText;
-let streakDays = 258;
-let currentExp = 0;
-let hasFedToday = false;
+const game = new Phaser.Game(config);
+let elephant;
+let isEating = false;
 
 function preload() {
-    // Assets: ကိုယ်တိုင်ဆွဲထားသော ပုံများနှင့် Sprite များကို ထည့်ရန်
-    this.load.image('pink_elephant', 'assets/pink_elephant.png');
-    this.load.image('sugarcane', 'assets/sugarcane.png');
-    this.load.image('heart', 'assets/heart.png');
+  // ပုံဖိုင်လမ်းကြောင်းကို သင့် repository ရှိရာအတိုင်း ချိန်ညှိနိုင်သည်
+  this.load.image('elephant', 'pink_elephant.png');
 }
 
 function create() {
-    // UI - Streak & Stats
-    streakText = this.add.text(20, 30, `🔥 ${streakDays} ရက်`, { fontSize: '18px', fill: '#ff4500', fontStyle: 'bold' });
-    expText = this.add.text(20, 60, `EXP: ${currentExp}`, { fontSize: '16px', fill: '#333' });
+  const scene = this;
 
-    // Main Pet (ပန်းရောင်ဆင်ပေါက်မလေး)
-    elephant = this.add.sprite(180, 400, 'pink_elephant').setInteractive();
-    elephant.setScale(0.8);
+  // ဆင်မလေး စတင်နေရာချထားခြင်း
+  elephant = scene.add.image(200, 240, 'elephant')
+    .setScale(0.55)
+    .setInteractive({ cursor: 'pointer' });
 
-    // လက်ဖြင့် ဖုန်းစခရင်ကို ပွတ်သပ်ထိတွေ့ခြင်း (Touch / Drag Interaction)
-    this.input.setDraggable(elephant);
-    elephant.on('pointermove', function (pointer) {
-        if (pointer.isDown) {
-            // ပွတ်သပ်သည့်အခါ နှလုံးသားရုပ်များ ထွက်လာစေရန်
-            showHeartAnimation(this.scene, pointer.x, pointer.y);
-        }
+  // ဆင်မလေးကို တို့ထိနှိပ်ကြည့်ပါက ချစ်စရာခုန်ပြမည့် animation
+  elephant.on('pointerdown', () => {
+    if (isEating) return;
+    scene.tweens.add({
+      targets: elephant,
+      y: 220,
+      yoyo: true,
+      duration: 120,
+      repeat: 1
     });
+    spawnHearts(scene, elephant.x, elephant.y - 60);
+  });
 
-    // ကြံချောင်း အစာကျွေးခလုတ်
-    let feedBtn = this.add.image(180, 620, 'sugarcane').setInteractive();
-    feedBtn.on('pointerdown', () => {
-        feedSugarcane(this);
-    });
+  // အပြင်ဘက်က ခလုတ်ကို နှိပ်လျှင် အစာကျွေးရန် ချိတ်ဆက်ခြင်း
+  document.getElementById('feed-btn').addEventListener('click', () => {
+    feedSugarcane(scene);
+  });
 }
 
 function feedSugarcane(scene) {
-    if (!hasFedToday) {
-        currentExp += 1000;
-        streakDays += 1;
-        hasFedToday = true;
+  if (isEating) return;
+  isEating = true;
 
-        // EXP နှင့် ရက်တိုးခြင်း update ပြုလုပ်ခြင်း
-        expText.setText(`EXP: ${currentExp}`);
-        streakText.setText(`🔥 ${streakDays} ရက်`);
+  // 🎋 Emoji ဖြင့် ကြံချောင်း ပေါ်လာစေခြင်း
+  const sugarcane = scene.add.text(50, 320, '🎋', {
+    fontSize: '52px'
+  }).setOrigin(0.5);
 
-        // ဆင်စားသောက်သည့် Animation နှင့် ကြီးထွားလာမှု (Scale up)
-        scene.tweens.add({
-            targets: elephant,
-            scaleX: elephant.scaleX + 0.05,
-            scaleY: elephant.scaleY + 0.05,
-            duration: 500,
-            yoyo: true,
-            repeat: 2
-        });
+  // ကြံချောင်း ဆင်မလေးဆီ ပျံသွားသည့် Tween
+  scene.tweens.add({
+    targets: sugarcane,
+    x: elephant.x - 40,
+    y: elephant.y + 20,
+    angle: 25,
+    duration: 650,
+    ease: 'Power2',
+    onComplete: () => {
+      // ဆင်မလေး အစာဝါးစားနေသည့် Animation (Squash & Stretch)
+      scene.tweens.add({
+        targets: elephant,
+        scaleX: 0.58,
+        scaleY: 0.52,
+        yoyo: true,
+        duration: 100,
+        repeat: 5,
+        onComplete: () => {
+          // စားပြီးသွားချိန် ကြံချောင်း ပျောက်သွားမည်
+          sugarcane.destroy();
+          isEating = false;
+          // ❤️ Emoji များ ပျံတက်လာမည်
+          spawnHearts(scene, elephant.x, elephant.y - 50);
+        }
+      });
     }
+  });
 }
 
-function showHeartAnimation(scene, x, y) {
-    let heart = scene.add.image(x, y, 'heart');
+// ❤️ Emoji လေးများ ပျံတက်သွားစေသည့် Function
+function spawnHearts(scene, x, y) {
+  for (let i = 0; i < 3; i++) {
+    const heart = scene.add.text(
+      x + Phaser.Math.Between(-30, 30),
+      y + Phaser.Math.Between(-10, 10),
+      '❤️',
+      { fontSize: `${Phaser.Math.Between(24, 32)}px` }
+    ).setOrigin(0.5).setAlpha(1);
+
     scene.tweens.add({
-        targets: heart,
-        y: y - 50,
-        alpha: 0,
-        duration: 800,
-        onComplete: () => heart.destroy()
+      targets: heart,
+      y: y - 80 - Phaser.Math.Between(10, 40),
+      x: heart.x + Phaser.Math.Between(-25, 25),
+      alpha: 0,
+      scale: 1.3,
+      duration: 1000 + (i * 200),
+      ease: 'Sine.easeOut',
+      onComplete: () => heart.destroy()
     });
+  }
 }
+</script>
 
-function update() {}
+</body>
+</html>
