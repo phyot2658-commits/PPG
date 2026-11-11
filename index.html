@@ -1,0 +1,80 @@
+// Game Config
+const config = {
+    type: Phaser.AUTO,
+    width: 360,
+    height: 740,
+    backgroundColor: '#ffffff',
+    scene: { preload: preload, create: create, update: update }
+};
+
+let elephant, streakText, expText;
+let streakDays = 258;
+let currentExp = 0;
+let hasFedToday = false;
+
+function preload() {
+    // Assets: ကိုယ်တိုင်ဆွဲထားသော ပုံများနှင့် Sprite များကို ထည့်ရန်
+    this.load.image('pink_elephant', 'assets/pink_elephant.png');
+    this.load.image('sugarcane', 'assets/sugarcane.png');
+    this.load.image('heart', 'assets/heart.png');
+}
+
+function create() {
+    // UI - Streak & Stats
+    streakText = this.add.text(20, 30, `🔥 ${streakDays} ရက်`, { fontSize: '18px', fill: '#ff4500', fontStyle: 'bold' });
+    expText = this.add.text(20, 60, `EXP: ${currentExp}`, { fontSize: '16px', fill: '#333' });
+
+    // Main Pet (ပန်းရောင်ဆင်ပေါက်မလေး)
+    elephant = this.add.sprite(180, 400, 'pink_elephant').setInteractive();
+    elephant.setScale(0.8);
+
+    // လက်ဖြင့် ဖုန်းစခရင်ကို ပွတ်သပ်ထိတွေ့ခြင်း (Touch / Drag Interaction)
+    this.input.setDraggable(elephant);
+    elephant.on('pointermove', function (pointer) {
+        if (pointer.isDown) {
+            // ပွတ်သပ်သည့်အခါ နှလုံးသားရုပ်များ ထွက်လာစေရန်
+            showHeartAnimation(this.scene, pointer.x, pointer.y);
+        }
+    });
+
+    // ကြံချောင်း အစာကျွေးခလုတ်
+    let feedBtn = this.add.image(180, 620, 'sugarcane').setInteractive();
+    feedBtn.on('pointerdown', () => {
+        feedSugarcane(this);
+    });
+}
+
+function feedSugarcane(scene) {
+    if (!hasFedToday) {
+        currentExp += 1000;
+        streakDays += 1;
+        hasFedToday = true;
+
+        // EXP နှင့် ရက်တိုးခြင်း update ပြုလုပ်ခြင်း
+        expText.setText(`EXP: ${currentExp}`);
+        streakText.setText(`🔥 ${streakDays} ရက်`);
+
+        // ဆင်စားသောက်သည့် Animation နှင့် ကြီးထွားလာမှု (Scale up)
+        scene.tweens.add({
+            targets: elephant,
+            scaleX: elephant.scaleX + 0.05,
+            scaleY: elephant.scaleY + 0.05,
+            duration: 500,
+            yoyo: true,
+            repeat: 2
+        });
+    }
+}
+
+function showHeartAnimation(scene, x, y) {
+    let heart = scene.add.image(x, y, 'heart');
+    scene.tweens.add({
+        targets: heart,
+        y: y - 50,
+        alpha: 0,
+        duration: 800,
+        onComplete: () => heart.destroy()
+    });
+}
+
+function update() {}
